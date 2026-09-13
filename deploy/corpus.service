@@ -1,0 +1,17 @@
+[Unit]
+Description=Corpus Backend API Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/corpus-backend
+EnvironmentFile=/var/www/corpus-backend/.env
+ExecStart=/var/www/corpus-backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8003 --workers 2
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
