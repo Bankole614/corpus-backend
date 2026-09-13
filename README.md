@@ -4,7 +4,7 @@ FastAPI backend for Corpus, the tattoo art decision layer. Powered by **Google G
 
 ## Features
 
-- **Phrase & Symbol Verification (`/verify`)**: Classical language accuracy checks (Latin, Classical Greek, Sanskrit) with grounded prompts and confidence scores.
+- **Phrase & Symbol Verification (`/verify`)**: Universal language & script accuracy checks (Latin, Japanese, Arabic, Greek, Sanskrit, French, Spanish, English, etc.) with automatic language detection, grounded linguistic audits, and confidence scores.
 - **AI Tattoo Concierge (`/concierge/*`)**: Interactive conversational discovery steering intent, placement, and style to produce a structured Tattoo Brief.
 - **Taste Profile Quiz (`/taste-profile`)**: Deterministic aesthetic classification and plain-language summary.
 - **Artist Directory & Matching (`/artists`)**: Overlap scoring algorithm matching client taste profiles with artists.

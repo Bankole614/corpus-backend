@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.db.models import VerificationRecord
-from app.models.verification import SupportedLanguage, VerificationRequest, VerificationResult
+from app.models.verification import VerificationRequest, VerificationResult
 from app.services.verification_service import VerificationError, verify_phrase
 
 router = APIRouter(prefix="/verify", tags=["verification"])
@@ -20,7 +20,7 @@ def _record_to_result(record: VerificationRecord) -> VerificationResult:
     return VerificationResult(
         id=record.id,
         input_phrase=record.input_phrase,
-        language=SupportedLanguage(record.language),
+        language=record.language,
         intended_meaning=record.intended_meaning,
         grammatically_valid=record.grammatically_valid,
         confidence=record.confidence,  # type: ignore[arg-type]
@@ -39,9 +39,10 @@ async def verify(
     db: AsyncSession = Depends(get_session),
 ) -> VerificationResult:
     """
-    Verify a phrase in a supported classical language (Latin, Classical Greek, Sanskrit).
-    Returns grammar/accuracy feedback, confidence level, and a plain-language recommendation,
-    and persists the result to verification history.
+    Verify any phrase, quote, word, or symbol in any language (Latin, Greek, Sanskrit,
+    Japanese, Arabic, French, Spanish, English, etc.) or with auto-detection.
+    Returns grammar accuracy, confidence score, corrections, issues, and plain-language
+    recommendations, and persists the result to history.
     """
     try:
         result = await verify_phrase(request)
@@ -50,7 +51,7 @@ async def verify(
 
     record = VerificationRecord(
         input_phrase=result.input_phrase,
-        language=result.language.value,
+        language=result.language,
         intended_meaning=result.intended_meaning,
         grammatically_valid=result.grammatically_valid,
         confidence=result.confidence,
@@ -64,7 +65,9 @@ async def verify(
     await db.commit()
     await db.refresh(record)
 
-    return _record_to_result(record)
+    saved_result = _record_to_result(record)
+    saved_result.detected_language = result.detected_language
+    return saved_result
 
 
 @router.get("/history", response_model=list[VerificationResult])

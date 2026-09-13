@@ -1,19 +1,18 @@
 from datetime import datetime
-from enum import Enum
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
 
-class SupportedLanguage(str, Enum):
-    latin = "latin"
-    classical_greek = "classical_greek"
-    sanskrit = "sanskrit"
-
-
 class VerificationRequest(BaseModel):
-    phrase: str = Field(..., min_length=1, max_length=500, description="The phrase the user is considering, in English or already-translated form.")
-    language: SupportedLanguage
+    phrase: str = Field(
+        ..., min_length=1, max_length=500, description="The phrase, quote, word, or symbol to verify."
+    )
+    language: Optional[str] = Field(
+        "auto",
+        max_length=50,
+        description="The target language (e.g. latin, japanese, arabic, sanskrit, french, english) or 'auto' for automatic detection.",
+    )
     intended_meaning: Optional[str] = Field(
         None,
         max_length=1000,
@@ -24,7 +23,10 @@ class VerificationRequest(BaseModel):
 class VerificationResult(BaseModel):
     id: Optional[str] = None
     input_phrase: str
-    language: SupportedLanguage
+    language: str = Field(..., description="Target or verified language.")
+    detected_language: Optional[str] = Field(
+        None, description="Automatically detected source or target language if 'auto' was used."
+    )
     intended_meaning: Optional[str] = None
     grammatically_valid: bool
     confidence: Literal["high", "medium", "low"]
@@ -35,8 +37,9 @@ class VerificationResult(BaseModel):
     recommendation: str
     created_at: Optional[datetime] = None
     disclaimer: str = (
-        "This is an AI-assisted check grounded in classical grammar references, "
-        "not a substitute for review by a language scholar. For a permanent tattoo, "
+        "This is an AI-assisted linguistic check grounded in rigorous grammar and cultural references, "
+        "not a substitute for review by a native speaker or language scholar. For a permanent tattoo, "
         "we strongly recommend an independent human review before proceeding."
     )
+
 
