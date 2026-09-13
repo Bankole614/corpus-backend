@@ -79,11 +79,9 @@ sudo systemctl status corpus.service
 ```
 
 ### 4. Configure Nginx Reverse Proxy
-Add a new site configuration for your domain/subdomain:
+Add a new site configuration for your subdomain:
 ```bash
 sudo cp deploy/nginx-corpus.conf /etc/nginx/sites-available/corpus
-# Edit with your actual domain or subdomain:
-sudo nano /etc/nginx/sites-available/corpus
 sudo ln -s /etc/nginx/sites-available/corpus /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
@@ -91,7 +89,7 @@ sudo systemctl reload nginx
 
 ### 5. Enable SSL with Certbot
 ```bash
-sudo certbot --nginx -d api-corpus.yourdomain.com
+sudo certbot --nginx -d corpus-api.bankole.xyz
 ```
 
 ---
