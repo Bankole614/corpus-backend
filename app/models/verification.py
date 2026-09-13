@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional
 
@@ -21,8 +22,10 @@ class VerificationRequest(BaseModel):
 
 
 class VerificationResult(BaseModel):
+    id: Optional[str] = None
     input_phrase: str
     language: SupportedLanguage
+    intended_meaning: Optional[str] = None
     grammatically_valid: bool
     confidence: Literal["high", "medium", "low"]
     corrected_phrase: Optional[str] = None
@@ -30,8 +33,10 @@ class VerificationResult(BaseModel):
     issues: list[str] = Field(default_factory=list)
     historical_usage_notes: Optional[str] = None
     recommendation: str
+    created_at: Optional[datetime] = None
     disclaimer: str = (
         "This is an AI-assisted check grounded in classical grammar references, "
         "not a substitute for review by a language scholar. For a permanent tattoo, "
         "we strongly recommend an independent human review before proceeding."
     )
+

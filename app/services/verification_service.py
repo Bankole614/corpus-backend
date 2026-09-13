@@ -144,6 +144,7 @@ async def verify_phrase(req: VerificationRequest) -> VerificationResult:
     return VerificationResult(
         input_phrase=req.phrase,
         language=req.language,
+        intended_meaning=req.intended_meaning,
         grammatically_valid=parsed.get("grammatically_valid", False),
         confidence=parsed.get("confidence", "low"),
         corrected_phrase=parsed.get("corrected_phrase"),

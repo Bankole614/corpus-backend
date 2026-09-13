@@ -97,7 +97,10 @@ sudo certbot --nginx -d corpus-api.bankole.xyz
 ## Endpoints Summary
 
 - `GET /health` — basic health check
-- `POST /verify` — verify a phrase in Latin / Classical Greek / Sanskrit
+- `POST /verify` — verify a phrase in Latin / Classical Greek / Sanskrit (persists to history)
+- `GET /verify/history` — fetch list of past phrase verifications
+- `GET /verify/{record_id}` — retrieve a single verification record
+- `DELETE /verify/{record_id}` — delete a verification record
 - `POST /concierge/sessions` — start a new concierge conversation
 - `GET /concierge/sessions/{session_id}` — fetch conversation history & `ready_for_brief` status
 - `POST /concierge/sessions/{session_id}/messages` — send a message to the concierge

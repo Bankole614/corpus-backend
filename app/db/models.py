@@ -81,3 +81,21 @@ class Artist(Base):
     color_approach: Mapped[str] = mapped_column(String)
     composition: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class VerificationRecord(Base):
+    __tablename__ = "verification_records"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    input_phrase: Mapped[str] = mapped_column(String)
+    language: Mapped[str] = mapped_column(String)
+    intended_meaning: Mapped[str | None] = mapped_column(Text, nullable=True)
+    grammatically_valid: Mapped[bool] = mapped_column(Boolean)
+    confidence: Mapped[str] = mapped_column(String)  # "high" | "medium" | "low"
+    corrected_phrase: Mapped[str | None] = mapped_column(Text, nullable=True)
+    literal_translation: Mapped[str] = mapped_column(Text)
+    issues: Mapped[str] = mapped_column(Text, default="[]")  # JSON string array
+    historical_usage_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recommendation: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
