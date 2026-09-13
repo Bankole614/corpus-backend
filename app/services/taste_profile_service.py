@@ -104,6 +104,24 @@ _DEFAULT_STYLE_DECK: list[StyleCardItem] = [
         color_approach="black_grey",
         composition="organic",
     ),
+    StyleCardItem(
+        id="minimal-script-cursive",
+        title="Fine-Line Cursive Script & Quote",
+        image_url="/static/deck/minimal_script_cursive.jpg",
+        word=DescriptiveWord.minimal,
+        line_weight="fine",
+        color_approach="black_grey",
+        composition="organic",
+    ),
+    StyleCardItem(
+        id="bold-gothic-lettering",
+        title="Bold Gothic Old English Lettering",
+        image_url="/static/deck/bold_gothic_lettering.jpg",
+        word=DescriptiveWord.bold,
+        line_weight="bold",
+        color_approach="black_grey",
+        composition="symmetrical",
+    ),
 ]
 
 
