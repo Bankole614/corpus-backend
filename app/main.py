@@ -1,6 +1,8 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.db import init_db
@@ -29,6 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+os.makedirs("app/static/deck", exist_ok=True)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 app.include_router(verify.router)
 app.include_router(concierge.router)
 app.include_router(taste_profile.router)
@@ -38,4 +43,5 @@ app.include_router(artists.router)
 @app.get("/health")
 def health():
     return {"status": "ok", "environment": settings.environment}
+
 
