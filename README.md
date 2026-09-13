@@ -106,6 +106,7 @@ sudo certbot --nginx -d corpus-api.bankole.xyz
 - `POST /concierge/sessions/{session_id}/messages` — send a message to the concierge
 - `POST /concierge/sessions/{session_id}/brief` — generate structured brief
 - `POST /taste-profile` — submit style quiz
+- `GET /taste-profile/deck` — fetch curated swipe deck of real tattoo photos with style tags
 - `GET /taste-profile/{profile_id}` — retrieve taste profile
 - `POST /artists` — register an artist
 - `GET /artists` — list all artists

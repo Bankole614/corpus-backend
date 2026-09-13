@@ -22,6 +22,16 @@ class TasteProfileRequest(BaseModel):
     composition: Literal["symmetrical", "organic"]
 
 
+class StyleCardItem(BaseModel):
+    id: str
+    image_url: str
+    title: str
+    word: DescriptiveWord
+    line_weight: Literal["fine", "bold"]
+    color_approach: Literal["color", "black_grey"]
+    composition: Literal["symmetrical", "organic"]
+
+
 class TasteProfileResult(BaseModel):
     profile_id: str
     descriptive_words: list[DescriptiveWord]
@@ -31,3 +41,4 @@ class TasteProfileResult(BaseModel):
     summary: str = Field(
         ..., description="Plain-language recap of the style profile, for display and later matching."
     )
+
