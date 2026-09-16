@@ -96,20 +96,54 @@ sudo certbot --nginx -d corpus-api.bankole.xyz
 
 ## Endpoints Summary
 
-- `GET /health` — basic health check
-- `POST /verify` — verify a phrase in Latin / Classical Greek / Sanskrit (persists to history)
-- `GET /verify/history` — fetch list of past phrase verifications
-- `GET /verify/{record_id}` — retrieve a single verification record
-- `DELETE /verify/{record_id}` — delete a verification record
-- `POST /concierge/sessions` — start a new concierge conversation
+### Authentication (`/auth`)
+- `POST /auth/register` — create account with `email`, `password`, and optional `full_name` (returns JWT + profile)
+- `POST /auth/login` — authenticate with `email` and `password` (returns JWT + profile)
+- `POST /auth/google` — authenticate or auto-register using a Google ID token (`credential`)
+- `POST /auth/forgot-password` — request a password reset email via Brevo
+- `POST /auth/reset-password` — reset password using a single-use reset token
+- `GET /auth/me` — retrieve authenticated user profile (`Authorization: Bearer <token>`)
+
+### Phrase & Symbol Verification (`/verify`)
+- `POST /verify` — verify a phrase across languages (auto-associated with user if authenticated)
+- `GET /verify/history` — fetch user's private verification history (requires auth)
+- `GET /verify/{record_id}` — retrieve a single verification record (owner or public if guest)
+- `DELETE /verify/{record_id}` — delete a verification record (owner or admin only)
+
+### AI Tattoo Concierge (`/concierge`)
+- `POST /concierge/sessions` — start a new concierge conversation (associated with user if logged in)
+- `GET /concierge/sessions` — list all concierge conversations belonging to current user
 - `GET /concierge/sessions/{session_id}` — fetch conversation history & `ready_for_brief` status
 - `POST /concierge/sessions/{session_id}/messages` — send a message to the concierge
 - `POST /concierge/sessions/{session_id}/brief` — generate structured brief
-- `POST /taste-profile` — submit style quiz
+
+### Taste Profile (`/taste-profile`)
+- `POST /taste-profile` — submit style quiz (associates with user if logged in)
+- `GET /taste-profile/me` — fetch current user's latest taste profile (requires auth)
 - `GET /taste-profile/deck` — fetch curated swipe deck of real tattoo photos with style tags
-- `GET /taste-profile/{profile_id}` — retrieve taste profile
-- `POST /artists` — register an artist
+- `GET /taste-profile/{profile_id}` — retrieve taste profile by ID
+
+### Artists (`/artists`)
+- `POST /artists` — register an artist (**Admin only**: requires `is_admin` token or `X-Admin-Key` header)
 - `GET /artists` — list all artists
 - `GET /artists/{artist_id}` — get single artist
+- `PUT /artists/{artist_id}` — update artist profile & style tags (**Admin only**)
+- `DELETE /artists/{artist_id}` — delete an artist (**Admin only**)
 - `GET /artists/match/{profile_id}` — rank artists against a taste profile
+
+### Admin Control Suite (`/admin`)
+All `/admin/*` endpoints require `is_admin=True` or `X-Admin-Key: <ADMIN_API_KEY>`.
+- `GET /admin/metrics` — global analytics dashboard (total users, active users, verifications, language breakdown, chat stats, artists)
+- `GET /admin/users` — paginated user list with search (`q`), role filter, and activity counts
+- `GET /admin/users/{user_id}` — full user activity inspector (verifications, chats, taste profiles)
+- `PATCH /admin/users/{user_id}` — manage user status (ban/activate, toggle admin rights)
+- `GET /admin/verifications` — global feed of all phrase verifications across the platform
+- `DELETE /admin/verifications/{record_id}` — remove any verification record
+- `GET /admin/concierge/sessions` — global feed of all AI concierge chat sessions
+- `GET /admin/concierge/sessions/{session_id}` — inspect full transcript and generated brief
+- `DELETE /admin/concierge/sessions/{session_id}` — remove any chat session
+- `GET /admin/taste-profiles` — view all submitted taste discovery profiles
+
+### Health
+- `GET /health` — basic health check
 

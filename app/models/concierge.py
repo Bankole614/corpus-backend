@@ -1,6 +1,15 @@
+from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+class SessionSummaryOut(BaseModel):
+    session_id: str
+    ready_for_brief: bool
+    created_at: datetime
+    updated_at: datetime
+    message_count: int = 0
 
 
 class ChatMessage(BaseModel):

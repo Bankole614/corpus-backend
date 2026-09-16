@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.db import init_db
-from app.routers import artists, concierge, taste_profile, verify
+from app.routers import admin, artists, auth, concierge, taste_profile, verify
 
 
 @asynccontextmanager
@@ -34,6 +34,8 @@ app.add_middleware(
 os.makedirs("app/static/deck", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(verify.router)
 app.include_router(concierge.router)
 app.include_router(taste_profile.router)

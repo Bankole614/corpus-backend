@@ -31,6 +31,20 @@ class Settings(BaseSettings):
     enable_verification: bool = True
     enable_concierge: bool = True
 
+    # Auth & Security
+    jwt_secret_key: str = "corpus-jwt-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    password_reset_token_expire_minutes: int = 15
+    google_client_id: str = ""
+    admin_api_key: str = ""
+
+    # Email & Brevo
+    brevo_api_key: str = ""
+    emails_from_email: str = "noreply@corpus.art"
+    emails_from_name: str = "Corpus"
+    frontend_url: str = "http://localhost:3000"
+
     @property
     def api_key(self) -> str:
         return self.gemini_api_key or self.google_api_key

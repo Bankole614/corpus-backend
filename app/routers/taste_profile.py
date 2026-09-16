@@ -3,7 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.db.models import TasteProfile
+from app.core.deps import get_current_user, get_optional_current_user
+from app.db.models import TasteProfile, User
 from app.models.taste_profile import DescriptiveWord, StyleCardItem, TasteProfileRequest, TasteProfileResult
 from app.services.taste_profile_service import build_summary, get_default_style_deck
 
@@ -42,9 +43,12 @@ async def get_taste_deck(
 
 @router.post("", response_model=TasteProfileResult)
 async def submit_taste_profile(
-    request: TasteProfileRequest, db: AsyncSession = Depends(get_session)
+    request: TasteProfileRequest,
+    current_user: User | None = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_session),
 ) -> TasteProfileResult:
     profile = TasteProfile(
+        user_id=current_user.id if current_user else None,
         descriptive_words=",".join(w.value for w in request.descriptive_words),
         line_weight=request.line_weight,
         color_approach=request.color_approach,
@@ -53,6 +57,23 @@ async def submit_taste_profile(
     db.add(profile)
     await db.commit()
     await db.refresh(profile)
+    return _to_result(profile)
+
+
+@router.get("/me", response_model=TasteProfileResult)
+async def get_my_taste_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> TasteProfileResult:
+    """Fetch the latest taste profile for the authenticated user."""
+    result = await db.execute(
+        select(TasteProfile)
+        .where(TasteProfile.user_id == current_user.id)
+        .order_by(TasteProfile.created_at.desc())
+    )
+    profile = result.scalars().first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="No taste profile found for this user")
     return _to_result(profile)
 
 

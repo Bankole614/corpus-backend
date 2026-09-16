@@ -16,14 +16,28 @@ def _utcnow() -> datetime:
 
 
 class User(Base):
-    """Deliberately minimal — no auth model has been decided yet. This exists
-    so ConciergeSession has somewhere to point once auth is designed; user_id
-    on a session is nullable until then."""
-
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    email: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
+    hashed_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    google_id: Mapped[str | None] = mapped_column(String, unique=True, index=True, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    concierge_sessions: Mapped[list["ConciergeSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    taste_profiles: Mapped[list["TasteProfile"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    verification_records: Mapped[list["VerificationRecord"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class ConciergeSession(Base):
@@ -35,6 +49,7 @@ class ConciergeSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
+    user: Mapped["User | None"] = relationship(back_populates="concierge_sessions")
     messages: Mapped[list["ConciergeMessage"]] = relationship(
         back_populates="session", order_by="ConciergeMessage.created_at", cascade="all, delete-orphan"
     )
@@ -57,14 +72,13 @@ class TasteProfile(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
     user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    # Stored as a comma-separated string rather than a separate join table —
-    # deliberately simple for a fixed, small enum set. Revisit if the word
-    # list grows or needs per-word querying (e.g. for artist matching).
     descriptive_words: Mapped[str] = mapped_column(String)
     line_weight: Mapped[str] = mapped_column(String)
     color_approach: Mapped[str] = mapped_column(String)
     composition: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    user: Mapped["User | None"] = relationship(back_populates="taste_profiles")
 
 
 class Artist(Base):
@@ -74,8 +88,6 @@ class Artist(Base):
     name: Mapped[str] = mapped_column(String)
     contact_url: Mapped[str] = mapped_column(String)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Same comma-separated-string approach as TasteProfile.descriptive_words above —
-    # small fixed enum set, not worth a join table yet.
     style_tags: Mapped[str] = mapped_column(String)
     line_weight: Mapped[str] = mapped_column(String)
     color_approach: Mapped[str] = mapped_column(String)
@@ -99,3 +111,5 @@ class VerificationRecord(Base):
     historical_usage_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     recommendation: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    user: Mapped["User | None"] = relationship(back_populates="verification_records")
