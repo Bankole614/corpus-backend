@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -9,9 +9,11 @@ from app.models.concierge import (
     BriefRequest,
     BriefResponse,
     ChatMessage,
+    ClearSessionsResponse,
     ConciergeChatRequest,
     SendMessageRequest,
     SessionCreateResponse,
+    SessionDeleteResponse,
     SessionDetailResponse,
     SessionMessageOut,
     SessionSummaryOut,
@@ -76,6 +78,31 @@ async def create_session(
     return SessionCreateResponse(session_id=session.id)
 
 
+@router.delete("/sessions", response_model=ClearSessionsResponse)
+async def clear_all_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> ClearSessionsResponse:
+    """
+    Deletes all concierge session history and associated messages for the current authenticated user.
+    """
+    count_res = await db.execute(
+        select(func.count(ConciergeSession.id)).where(ConciergeSession.user_id == current_user.id)
+    )
+    count = count_res.scalar_one()
+
+    if count > 0:
+        subquery = select(ConciergeSession.id).where(ConciergeSession.user_id == current_user.id)
+        await db.execute(delete(ConciergeMessage).where(ConciergeMessage.session_id.in_(subquery)))
+        await db.execute(delete(ConciergeSession).where(ConciergeSession.user_id == current_user.id))
+        await db.commit()
+
+    return ClearSessionsResponse(
+        message=f"Successfully cleared {count} session(s)" if count > 0 else "No sessions to clear",
+        deleted_count=count,
+    )
+
+
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 async def get_session_detail(
     session_id: str,
@@ -91,6 +118,28 @@ async def get_session_detail(
         session_id=session.id,
         ready_for_brief=session.ready_for_brief,
         messages=[SessionMessageOut(role=m.role, content=m.content) for m in messages],
+    )
+
+
+@router.delete("/sessions/{session_id}", response_model=SessionDeleteResponse)
+async def delete_session(
+    session_id: str,
+    current_user: User | None = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> SessionDeleteResponse:
+    """
+    Deletes a specific concierge session and its associated messages.
+    Requires ownership of the session (or admin privileges).
+    """
+    session = await _load_session(db, session_id, current_user)
+
+    await db.execute(delete(ConciergeMessage).where(ConciergeMessage.session_id == session.id))
+    await db.delete(session)
+    await db.commit()
+
+    return SessionDeleteResponse(
+        message="Session deleted successfully",
+        session_id=session_id,
     )
 
 

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import uuid
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +23,7 @@ from app.models.auth import (
     MessageResponse,
     ResetPasswordRequest,
     TokenResponse,
+    UpdateProfileRequest,
     UserLoginRequest,
     UserOut,
     UserRegisterRequest,
@@ -186,10 +189,101 @@ async def google_auth(
 
 
 @router.get("/me", response_model=UserOut)
+@router.get("/profile", response_model=UserOut, include_in_schema=False)
 async def get_me(current_user: User = Depends(get_current_user)) -> UserOut:
     """
     Get current authenticated user profile.
     """
+    return _user_to_out(current_user)
+
+
+@router.patch("/me", response_model=UserOut)
+@router.put("/me", response_model=UserOut)
+@router.patch("/profile", response_model=UserOut, include_in_schema=False)
+@router.put("/profile", response_model=UserOut, include_in_schema=False)
+async def update_profile(
+    request: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> UserOut:
+    """
+    Update the current authenticated user's profile.
+    Supports updating full_name, avatar_url, email, and password.
+    """
+    fields_set = request.model_fields_set
+
+    if "email" in fields_set and request.email is not None:
+        new_email = request.email.lower().strip()
+        if new_email != (current_user.email or "").lower():
+            res = await db.execute(select(User).where(User.email == new_email))
+            existing = res.scalar_one_or_none()
+            if existing and existing.id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A user with this email already exists",
+                )
+            current_user.email = new_email
+
+    if "full_name" in fields_set:
+        current_user.full_name = request.full_name.strip() if isinstance(request.full_name, str) else request.full_name
+
+    if "avatar_url" in fields_set:
+        current_user.avatar_url = request.avatar_url.strip() if isinstance(request.avatar_url, str) else request.avatar_url
+
+    if "new_password" in fields_set and request.new_password:
+        if current_user.hashed_password:
+            if not request.current_password:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Current password is required to set a new password",
+                )
+            if not verify_password(request.current_password, current_user.hashed_password):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Current password is incorrect",
+                )
+        current_user.hashed_password = hash_password(request.new_password)
+
+    await db.commit()
+    await db.refresh(current_user)
+    return _user_to_out(current_user)
+
+
+@router.post("/avatar", response_model=UserOut)
+@router.post("/me/avatar", response_model=UserOut)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> UserOut:
+    """
+    Upload an avatar image directly for the current authenticated user.
+    """
+    if not file.content_type or not (
+        file.content_type.startswith("image/") or file.content_type == "application/octet-stream"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image",
+        )
+
+    filename = file.filename or "avatar.png"
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ext = ".png"
+
+    avatar_dir = "app/static/avatars"
+    os.makedirs(avatar_dir, exist_ok=True)
+    stored_filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(avatar_dir, stored_filename)
+
+    contents = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    current_user.avatar_url = f"/static/avatars/{stored_filename}"
+    await db.commit()
+    await db.refresh(current_user)
     return _user_to_out(current_user)
 
 

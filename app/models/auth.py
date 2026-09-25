@@ -43,6 +43,14 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6, description="New password, at least 6 characters")
 
 
+class UpdateProfileRequest(BaseModel):
+    full_name: str | None = None
+    avatar_url: str | None = None
+    email: EmailStr | None = None
+    current_password: str | None = None
+    new_password: str | None = Field(default=None, min_length=6, description="New password, at least 6 characters")
+
+
 class MessageResponse(BaseModel):
     message: str
     dev_reset_url: str | None = None

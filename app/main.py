@@ -32,6 +32,7 @@ app.add_middleware(
 )
 
 os.makedirs("app/static/deck", exist_ok=True)
+os.makedirs("app/static/avatars", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(auth.router)

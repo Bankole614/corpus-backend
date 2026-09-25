@@ -66,3 +66,13 @@ class TattooBrief(BaseModel):
 
 class BriefResponse(BaseModel):
     brief: TattooBrief
+
+
+class SessionDeleteResponse(BaseModel):
+    message: str
+    session_id: str
+
+
+class ClearSessionsResponse(BaseModel):
+    message: str
+    deleted_count: int
