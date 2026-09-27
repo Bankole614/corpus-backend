@@ -15,6 +15,7 @@ class SessionSummaryOut(BaseModel):
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
+    image_url: Optional[str] = None
 
 
 class ConciergeChatRequest(BaseModel):
@@ -34,13 +35,22 @@ class SessionCreateResponse(BaseModel):
     session_id: str
 
 
+class AttachmentUploadResponse(BaseModel):
+    image_url: str
+
+
 class SendMessageRequest(BaseModel):
-    content: str = Field(..., min_length=1, max_length=4000)
+    content: Optional[str] = Field(default="", max_length=4000)
+    image_url: Optional[str] = Field(
+        default=None,
+        description="Optional image URL or uploaded attachment path (e.g. /static/concierge/filename.jpg).",
+    )
 
 
 class SessionMessageOut(BaseModel):
     role: Literal["user", "assistant"]
     content: str
+    image_url: Optional[str] = None
 
 
 class SessionDetailResponse(BaseModel):
@@ -58,6 +68,10 @@ class TattooBrief(BaseModel):
     suggested_styles: list[str]
     historical_or_cultural_context: Optional[str] = None
     placement_notes: Optional[str] = None
+    visual_reference_notes: Optional[str] = Field(
+        default=None,
+        description="Visual observations or stylistic notes from any reference photos or anatomical placements shared.",
+    )
     risks_or_considerations: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(
         default_factory=list, description="Things still worth discussing with an artist directly."

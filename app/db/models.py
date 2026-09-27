@@ -62,6 +62,7 @@ class ConciergeMessage(Base):
     session_id: Mapped[str] = mapped_column(ForeignKey("concierge_sessions.id"))
     role: Mapped[str] = mapped_column(String)  # "user" | "assistant"
     content: Mapped[str] = mapped_column(Text)
+    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     session: Mapped["ConciergeSession"] = relationship(back_populates="messages")

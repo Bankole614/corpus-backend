@@ -383,7 +383,10 @@ async def inspect_concierge_session(
     return SessionDetailResponse(
         session_id=session.id,
         ready_for_brief=session.ready_for_brief,
-        messages=[SessionMessageOut(role=m.role, content=m.content) for m in messages],
+        messages=[
+            SessionMessageOut(role=m.role, content=m.content, image_url=m.image_url)
+            for m in messages
+        ],
     )
 
 

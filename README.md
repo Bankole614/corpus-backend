@@ -114,8 +114,9 @@ sudo certbot --nginx -d corpus-api.bankole.xyz
 - `POST /concierge/sessions` — start a new concierge conversation (associated with user if logged in)
 - `GET /concierge/sessions` — list all concierge conversations belonging to current user
 - `GET /concierge/sessions/{session_id}` — fetch conversation history & `ready_for_brief` status
-- `POST /concierge/sessions/{session_id}/messages` — send a message to the concierge
-- `POST /concierge/sessions/{session_id}/brief` — generate structured brief
+- `POST /concierge/sessions/{session_id}/attachments` — upload an image reference (photo, design style, body placement)
+- `POST /concierge/sessions/{session_id}/messages` — send a message with optional `image_url`
+- `POST /concierge/sessions/{session_id}/brief` — generate structured brief incorporating visual references
 
 ### Taste Profile (`/taste-profile`)
 - `POST /taste-profile` — submit style quiz (associates with user if logged in)

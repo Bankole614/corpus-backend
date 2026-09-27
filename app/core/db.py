@@ -40,6 +40,11 @@ def _migrate_columns(connection) -> None:
         for stmt in statements:
             connection.execute(text(stmt))
 
+    if "concierge_messages" in inspector.get_table_names():
+        columns = [col["name"] for col in inspector.get_columns("concierge_messages")]
+        if "image_url" not in columns:
+            connection.execute(text("ALTER TABLE concierge_messages ADD COLUMN image_url VARCHAR"))
+
 
 async def init_db() -> None:
     """Create tables if they don't exist, and ensure updated columns exist."""

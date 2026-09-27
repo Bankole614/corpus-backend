@@ -13,13 +13,20 @@ Design intent (see PRD section 6.1):
   deliberate exclusion, not an oversight).
 """
 
+import base64
 import json
+import logging
+import mimetypes
+import os
 
 from google.genai import types
+import httpx
 
 from app.core.config import settings
 from app.core.llm_client import get_client
 from app.models.concierge import BriefRequest, ChatMessage, ConciergeChatRequest, TattooBrief
+
+logger = logging.getLogger(__name__)
 
 _CHAT_SYSTEM_PROMPT = """You are the Corpus concierge — a warm, patient guide helping someone think \
 through a tattoo idea before they ever talk to an artist. The person may be a first-timer and anxious \
@@ -30,6 +37,11 @@ Your job across the conversation is to draw out, through natural conversation (n
 2. Style leanings (e.g. fine line, bold/traditional, blackwork, illustrative, geometric — don't assume, ask)
 3. Placement thoughts (where on the body, and whether they've considered visibility/pain/sizing tradeoffs)
 4. Rough size expectations
+
+When the user shares an image:
+- If it's a tattoo or artwork reference: Thoughtfully analyze what you see (visual style, linework, shading, contrast, composition, subject elements). Help them articulate what specific aspects they resonate with (e.g. "I notice the delicate dot-work shading here—is that the texture you're drawn to?"). Remind them gently that an artist will design a bespoke piece inspired by their references rather than copying an existing tattoo directly.
+- If it's a placement or anatomy photo: Acknowledge the location and contours (e.g. curvature of the forearm, visibility, movement), and discuss how different compositions or sizes might fit and age there.
+- If it's an existing tattoo (for a cover-up or expansion): Assess the density, line weight, and negative space, and advise on realistic aesthetic approaches to incorporate or disguise it.
 
 Ask ONE focused question at a time — don't dump a checklist on them. Follow their energy: if they're \
 unsure about something, help them think it through rather than rushing past it. If they mention a phrase \
@@ -52,8 +64,8 @@ real ambiguity remains.
 
 _BRIEF_SYSTEM_PROMPT = """You are generating a structured tattoo brief from a conversation between a \
 user and the Corpus concierge. This brief will be shown to the user and optionally shared with a tattoo \
-artist. Be concrete and grounded ONLY in what was actually discussed — do not invent details, meanings, \
-or style preferences the user didn't express or clearly imply.
+artist. Be concrete and grounded ONLY in what was actually discussed and shared — do not invent details, \
+meanings, or style preferences the user didn't express or clearly imply.
 
 Respond with ONLY a valid JSON object matching exactly this schema:
 {
@@ -61,13 +73,16 @@ Respond with ONLY a valid JSON object matching exactly this schema:
   "suggested_styles": [string, ...],
   "historical_or_cultural_context": string or null,
   "placement_notes": string or null,
+  "visual_reference_notes": string or null,
   "risks_or_considerations": [string, ...],
   "open_questions": [string, ...]
 }
 
+- "visual_reference_notes" should summarize stylistic observations, textures, or anatomical placement cues \
+from any reference photos shared during the session. If no images were shared, leave null.
 - "risks_or_considerations" should flag anything genuinely worth flagging (e.g. fine detail that may not \
 hold up at small size, a placement with higher pain/healing complexity, a symbol/text element that should \
-go through the separate verification tool).
+go through the separate verification tool, or cover-up considerations).
 - "open_questions" are things still worth discussing with an artist directly — not things you're unsure \
 about from the conversation.
 - If the conversation didn't cover something (e.g. placement was never discussed), leave that field null \
@@ -87,16 +102,68 @@ def _clean_json_text(text: str) -> str:
     return text
 
 
-def _messages_to_gemini_contents(messages: list[ChatMessage]) -> list[types.Content]:
+async def _load_image_part(image_url: str) -> types.Part | None:
+    if not image_url:
+        return None
+
+    try:
+        # 1. Base64 Data URI
+        if image_url.startswith("data:image/"):
+            header, data_str = image_url.split(",", 1)
+            mime_type = header.split(";")[0].replace("data:", "").strip()
+            raw_bytes = base64.b64decode(data_str)
+            return types.Part.from_bytes(data=raw_bytes, mime_type=mime_type or "image/jpeg")
+
+        # 2. Local static file
+        normalized = image_url.lstrip("/")
+        candidates = [
+            os.path.join("app", normalized),
+            normalized,
+            os.path.join(".", normalized),
+        ]
+        for path in candidates:
+            if os.path.isfile(path):
+                mime, _ = mimetypes.guess_type(path)
+                mime = mime or "image/jpeg"
+                with open(path, "rb") as f:
+                    data = f.read()
+                return types.Part.from_bytes(data=data, mime_type=mime)
+
+        # 3. HTTP / HTTPS URL
+        if image_url.startswith(("http://", "https://")):
+            async with httpx.AsyncClient(timeout=10.0) as http_client:
+                resp = await http_client.get(image_url)
+                if resp.status_code == 200:
+                    mime = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                    if not mime.startswith("image/"):
+                        mime = "image/jpeg"
+                    return types.Part.from_bytes(data=resp.content, mime_type=mime)
+
+        logger.warning("Unable to resolve image part for URL: %s", image_url)
+        return None
+    except Exception as e:
+        logger.warning("Failed to load image for Gemini from %s: %s", image_url, e)
+        return None
+
+
+async def _messages_to_gemini_contents(messages: list[ChatMessage]) -> list[types.Content]:
     contents: list[types.Content] = []
     for m in messages:
         role = "model" if m.role == "assistant" else "user"
-        contents.append(
-            types.Content(
-                role=role,
-                parts=[types.Part.from_text(text=m.content)],
-            )
-        )
+        parts: list[types.Part] = []
+
+        if m.image_url:
+            image_part = await _load_image_part(m.image_url)
+            if image_part:
+                parts.append(image_part)
+
+        text_content = (m.content or "").strip()
+        if text_content:
+            parts.append(types.Part.from_text(text=text_content))
+        elif not parts:
+            parts.append(types.Part.from_text(text="[Shared an image reference]"))
+
+        contents.append(types.Content(role=role, parts=parts))
     return contents
 
 
@@ -110,7 +177,7 @@ async def continue_chat(req: ConciergeChatRequest) -> dict:
     except RuntimeError as e:
         raise ConciergeError(str(e)) from e
 
-    contents = _messages_to_gemini_contents(req.messages)
+    contents = await _messages_to_gemini_contents(req.messages)
 
     try:
         response = await client.aio.models.generate_content(
@@ -144,7 +211,7 @@ async def generate_brief(req: BriefRequest) -> TattooBrief:
     except RuntimeError as e:
         raise ConciergeError(str(e)) from e
 
-    contents = _messages_to_gemini_contents(req.messages)
+    contents = await _messages_to_gemini_contents(req.messages)
 
     try:
         response = await client.aio.models.generate_content(
@@ -171,6 +238,7 @@ async def generate_brief(req: BriefRequest) -> TattooBrief:
         suggested_styles=parsed.get("suggested_styles", []),
         historical_or_cultural_context=parsed.get("historical_or_cultural_context"),
         placement_notes=parsed.get("placement_notes"),
+        visual_reference_notes=parsed.get("visual_reference_notes"),
         risks_or_considerations=parsed.get("risks_or_considerations", []),
         open_questions=parsed.get("open_questions", []),
     )
