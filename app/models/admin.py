@@ -15,6 +15,7 @@ class AdminOverviewMetrics(BaseModel):
     total_concierge_messages: int
     total_taste_profiles: int
     total_artists: int
+    total_early_access_subscribers: int = 0
     verifications_by_language: dict[str, int] = Field(default_factory=dict)
 
 

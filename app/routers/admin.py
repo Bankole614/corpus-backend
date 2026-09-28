@@ -10,6 +10,7 @@ from app.db.models import (
     Artist,
     ConciergeMessage,
     ConciergeSession,
+    EarlyAccessSubscriber,
     TasteProfile,
     User,
     VerificationRecord,
@@ -22,6 +23,7 @@ from app.models.admin import (
     AdminUserUpdate,
     AdminVerificationItem,
 )
+from app.models.early_access import EarlyAccessListResponse, EarlyAccessSubscriberOut
 from app.models.concierge import SessionDetailResponse, SessionMessageOut
 from app.models.taste_profile import DescriptiveWord, TasteProfileRequest, TasteProfileResult
 from app.services.taste_profile_service import build_summary
@@ -56,6 +58,9 @@ async def get_overview_metrics(db: AsyncSession = Depends(get_session)) -> Admin
     total_artists_res = await db.execute(select(func.count(Artist.id)))
     total_artists = total_artists_res.scalar_one()
 
+    total_subscribers_res = await db.execute(select(func.count(EarlyAccessSubscriber.id)))
+    total_early_access_subscribers = total_subscribers_res.scalar_one()
+
     # Verifications grouped by language
     lang_query = select(VerificationRecord.language, func.count(VerificationRecord.id)).group_by(
         VerificationRecord.language
@@ -71,6 +76,7 @@ async def get_overview_metrics(db: AsyncSession = Depends(get_session)) -> Admin
         total_concierge_messages=total_concierge_messages,
         total_taste_profiles=total_taste_profiles,
         total_artists=total_artists,
+        total_early_access_subscribers=total_early_access_subscribers,
         verifications_by_language=verifications_by_language,
     )
 
@@ -435,3 +441,55 @@ async def list_all_taste_profiles(
             )
         )
     return out
+
+
+# ==========================================
+# 6. Early Access / Waitlist Subscribers
+# ==========================================
+@router.get("/early-access", response_model=EarlyAccessListResponse)
+async def list_early_access_subscribers(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_session),
+) -> EarlyAccessListResponse:
+    """List all subscribers on the early access waitlist."""
+    total_res = await db.execute(select(func.count(EarlyAccessSubscriber.id)))
+    total = total_res.scalar_one()
+
+    query = (
+        select(EarlyAccessSubscriber)
+        .order_by(EarlyAccessSubscriber.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    subscribers = (await db.execute(query)).scalars().all()
+
+    return EarlyAccessListResponse(
+        total=total,
+        subscribers=[
+            EarlyAccessSubscriberOut(
+                id=s.id,
+                email=s.email,
+                source=s.source,
+                ip_address=s.ip_address,
+                created_at=s.created_at,
+            )
+            for s in subscribers
+        ],
+    )
+
+
+@router.delete("/early-access/{subscriber_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_early_access_subscriber(
+    subscriber_id: str,
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """Remove a subscriber from the early access waitlist."""
+    result = await db.execute(
+        select(EarlyAccessSubscriber).where(EarlyAccessSubscriber.id == subscriber_id)
+    )
+    subscriber = result.scalar_one_or_none()
+    if subscriber is None:
+        raise HTTPException(status_code=404, detail="Subscriber not found")
+    await db.delete(subscriber)
+    await db.commit()

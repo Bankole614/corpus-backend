@@ -145,6 +145,11 @@ All `/admin/*` endpoints require `is_admin=True` or `X-Admin-Key: <ADMIN_API_KEY
 - `GET /admin/concierge/sessions/{session_id}` — inspect full transcript and generated brief
 - `DELETE /admin/concierge/sessions/{session_id}` — remove any chat session
 - `GET /admin/taste-profiles` — view all submitted taste discovery profiles
+- `GET /admin/early-access` — view & export all landing page early access subscribers
+- `DELETE /admin/early-access/{subscriber_id}` — delete a waitlist subscriber
+
+### Early Access & Waitlist
+- `POST /early-access` (or alias `POST /waitlist`) — submit email to join the early access waitlist (rate-limited, sends Brevo confirmation email, idempotent)
 
 ### Rate Limiting & Protection
 Configured via environment variables (defaults shown below) with real IP proxy resolution (`X-Forwarded-For`) and user-aware keying:

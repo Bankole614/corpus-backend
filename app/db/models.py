@@ -114,3 +114,13 @@ class VerificationRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User | None"] = relationship(back_populates="verification_records")
+
+
+class EarlyAccessSubscriber(Base):
+    __tablename__ = "early_access_subscribers"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    source: Mapped[str] = mapped_column(String, default="landing_page")
+    ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

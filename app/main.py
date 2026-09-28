@@ -9,7 +9,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.core.config import settings
 from app.core.db import init_db
 from app.core.limiter import limiter, rate_limit_exceeded_handler
-from app.routers import admin, artists, auth, concierge, taste_profile, verify
+from app.routers import admin, artists, auth, concierge, early_access, taste_profile, verify
 
 
 @asynccontextmanager
@@ -50,6 +50,7 @@ app.include_router(verify.router)
 app.include_router(concierge.router)
 app.include_router(taste_profile.router)
 app.include_router(artists.router)
+app.include_router(early_access.router)
 
 
 @app.get("/health")

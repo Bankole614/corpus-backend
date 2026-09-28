@@ -41,8 +41,10 @@ class Settings(BaseSettings):
 
     # Email & Brevo
     brevo_api_key: str = ""
-    emails_from_email: str = "noreply@corpus.art"
+    emails_from_email: str = "noreply@mail.bankole.xyz"
+    brevo_sender_email: str = ""
     emails_from_name: str = "Corpus"
+    brevo_sender_name: str = ""
     frontend_url: str = "http://localhost:3000"
 
     # Rate Limiting
@@ -54,6 +56,14 @@ class Settings(BaseSettings):
     rate_limit_concierge_chat: str = "20/minute"
     rate_limit_concierge_brief: str = "5/minute"
     rate_limit_default: str = "100/minute"
+
+    @property
+    def sender_email(self) -> str:
+        return self.brevo_sender_email or self.emails_from_email
+
+    @property
+    def sender_name(self) -> str:
+        return self.brevo_sender_name or self.emails_from_name
 
     @property
     def api_key(self) -> str:
