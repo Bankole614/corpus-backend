@@ -1,12 +1,14 @@
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.db import get_session
 from app.core.deps import get_current_user, get_optional_current_user
+from app.core.limiter import limiter
 from app.db.models import ConciergeMessage, ConciergeSession, User
 from app.models.concierge import (
     AttachmentUploadResponse,
@@ -195,9 +197,11 @@ async def delete_session(
 
 
 @router.post("/sessions/{session_id}/messages", response_model=SessionDetailResponse)
+@limiter.limit(settings.rate_limit_concierge_chat)
 async def send_message(
     session_id: str,
-    request: SendMessageRequest,
+    payload: SendMessageRequest,
+    request: Request,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> SessionDetailResponse:
@@ -208,8 +212,8 @@ async def send_message(
     """
     session = await _load_session(db, session_id, current_user)
 
-    content = (request.content or "").strip()
-    image_url = (request.image_url or "").strip() or None
+    content = (payload.content or "").strip()
+    image_url = (payload.image_url or "").strip() or None
 
     if not content and not image_url:
         raise HTTPException(
@@ -267,8 +271,10 @@ async def send_message(
 
 
 @router.post("/sessions/{session_id}/brief", response_model=BriefResponse)
+@limiter.limit(settings.rate_limit_concierge_brief)
 async def brief(
     session_id: str,
+    request: Request,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> BriefResponse:

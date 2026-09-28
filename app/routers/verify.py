@@ -1,10 +1,12 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.db import get_session
 from app.core.deps import get_current_user, get_optional_current_user
+from app.core.limiter import limiter
 from app.db.models import User, VerificationRecord
 from app.models.verification import VerificationRequest, VerificationResult
 from app.services.verification_service import VerificationError, verify_phrase
@@ -35,8 +37,10 @@ def _record_to_result(record: VerificationRecord) -> VerificationResult:
 
 
 @router.post("", response_model=VerificationResult)
+@limiter.limit(settings.rate_limit_verify)
 async def verify(
-    request: VerificationRequest,
+    payload: VerificationRequest,
+    request: Request,
     current_user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_session),
 ) -> VerificationResult:
@@ -47,7 +51,7 @@ async def verify(
     recommendations, and persists the result to history.
     """
     try:
-        result = await verify_phrase(request)
+        result = await verify_phrase(payload)
     except VerificationError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 

@@ -45,6 +45,16 @@ class Settings(BaseSettings):
     emails_from_name: str = "Corpus"
     frontend_url: str = "http://localhost:3000"
 
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_storage_url: str = "memory://"
+    rate_limit_auth: str = "10/minute"
+    rate_limit_forgot_password: str = "3/minute"
+    rate_limit_verify: str = "15/minute"
+    rate_limit_concierge_chat: str = "20/minute"
+    rate_limit_concierge_brief: str = "5/minute"
+    rate_limit_default: str = "100/minute"
+
     @property
     def api_key(self) -> str:
         return self.gemini_api_key or self.google_api_key

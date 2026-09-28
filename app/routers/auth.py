@@ -1,12 +1,13 @@
 import os
 import uuid
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.deps import get_current_user
+from app.core.limiter import get_real_ip, limiter
 from app.core.security import (
     create_access_token,
     create_password_reset_token,
@@ -45,15 +46,17 @@ def _user_to_out(user: User) -> UserOut:
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(settings.rate_limit_auth, key_func=get_real_ip)
 async def register(
-    request: UserRegisterRequest,
+    payload: UserRegisterRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),
 ) -> TokenResponse:
     """
     Register a new user with email and password.
     Returns access token and user profile.
     """
-    email = request.email.lower().strip()
+    email = payload.email.lower().strip()
     result = await db.execute(select(User).where(User.email == email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
@@ -68,8 +71,8 @@ async def register(
 
     user = User(
         email=email,
-        hashed_password=hash_password(request.password),
-        full_name=request.full_name,
+        hashed_password=hash_password(payload.password),
+        full_name=payload.full_name,
         is_admin=is_first_user,
     )
     db.add(user)
@@ -81,15 +84,17 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(settings.rate_limit_auth, key_func=get_real_ip)
 async def login(
-    request: UserLoginRequest,
+    payload: UserLoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),
 ) -> TokenResponse:
     """
     Authenticate with email and password.
     Returns access token and user profile.
     """
-    email = request.email.lower().strip()
+    email = payload.email.lower().strip()
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
@@ -100,7 +105,7 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not verify_password(request.password, user.hashed_password):
+    if not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -118,8 +123,10 @@ async def login(
 
 
 @router.post("/google", response_model=TokenResponse)
+@limiter.limit(settings.rate_limit_auth, key_func=get_real_ip)
 async def google_auth(
-    request: GoogleAuthRequest,
+    payload: GoogleAuthRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),
 ) -> TokenResponse:
     """
@@ -127,7 +134,7 @@ async def google_auth(
     Links with existing account if the email matches.
     """
     try:
-        id_info = verify_google_token(request.credential)
+        id_info = verify_google_token(payload.credential)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -288,15 +295,17 @@ async def upload_avatar(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
+@limiter.limit(settings.rate_limit_forgot_password, key_func=get_real_ip)
 async def forgot_password(
-    request: ForgotPasswordRequest,
+    payload: ForgotPasswordRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
     """
     Request a password reset link. Always returns a generic success message
     to prevent user enumeration.
     """
-    email = request.email.lower().strip()
+    email = payload.email.lower().strip()
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
@@ -315,15 +324,17 @@ async def forgot_password(
 
 
 @router.post("/reset-password", response_model=MessageResponse)
+@limiter.limit(settings.rate_limit_auth, key_func=get_real_ip)
 async def reset_password(
-    request: ResetPasswordRequest,
+    body: ResetPasswordRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
     """
     Reset password using a valid, non-expired password reset token.
     Once used, the token is permanently invalidated.
     """
-    payload = decode_password_reset_token(request.token)
+    payload = decode_password_reset_token(body.token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -353,7 +364,7 @@ async def reset_password(
             detail="This reset token has already been used or is no longer valid",
         )
 
-    user.hashed_password = hash_password(request.new_password)
+    user.hashed_password = hash_password(body.new_password)
     await db.commit()
 
     return MessageResponse(message="Password has been successfully updated.")

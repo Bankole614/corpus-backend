@@ -8,6 +8,7 @@ FastAPI backend for Corpus, the tattoo art decision layer. Powered by **Google G
 - **AI Tattoo Concierge (`/concierge/*`)**: Interactive conversational discovery steering intent, placement, and style to produce a structured Tattoo Brief.
 - **Taste Profile Quiz (`/taste-profile`)**: Deterministic aesthetic classification and plain-language summary.
 - **Artist Directory & Matching (`/artists`)**: Overlap scoring algorithm matching client taste profiles with artists.
+- **Production Rate Limiting**: Built-in request throttling powered by `slowapi` to protect against credential stuffing, email spam, and LLM quota exhaustion. Configurable per route, supports in-memory and Redis storage backends.
 - **CORS Enabled**: Configured out of the box for web and mobile frontends.
 
 ---
@@ -145,6 +146,17 @@ All `/admin/*` endpoints require `is_admin=True` or `X-Admin-Key: <ADMIN_API_KEY
 - `DELETE /admin/concierge/sessions/{session_id}` — remove any chat session
 - `GET /admin/taste-profiles` — view all submitted taste discovery profiles
 
+### Rate Limiting & Protection
+Configured via environment variables (defaults shown below) with real IP proxy resolution (`X-Forwarded-For`) and user-aware keying:
+| Endpoint Group | Default Limit | Purpose |
+| :--- | :--- | :--- |
+| `POST /auth/login`, `POST /auth/register`, `POST /auth/google`, `POST /auth/reset-password` | `10/minute` | Brute force / credential stuffing protection |
+| `POST /auth/forgot-password` | `3/minute` | Transactional email & quota exhaustion protection |
+| `POST /verify` | `15/minute` | Gemini LLM quota & cost protection |
+| `POST /concierge/sessions/{id}/messages` | `20/minute` | Multi-turn chat abuse protection |
+| `POST /concierge/sessions/{id}/brief` | `5/minute` | Structured brief generation quota protection |
+| All other endpoints | `100/minute` | General API abuse & DoS prevention |
+
 ### Health
-- `GET /health` — basic health check
+- `GET /health` — basic health check (exempt from rate limits)
 

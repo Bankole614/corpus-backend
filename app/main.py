@@ -1,11 +1,14 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.db import init_db
+from app.core.limiter import limiter, rate_limit_exceeded_handler
 from app.routers import admin, artists, auth, concierge, taste_profile, verify
 
 
@@ -21,6 +24,11 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Rate limiting state & exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # CORS middleware configuration
 app.add_middleware(
@@ -45,7 +53,8 @@ app.include_router(artists.router)
 
 
 @app.get("/health")
-def health():
+@limiter.exempt
+def health(request: Request):
     return {"status": "ok", "environment": settings.environment}
 
 
