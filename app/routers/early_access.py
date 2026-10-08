@@ -51,8 +51,20 @@ async def join_early_access(
     # Send confirmation email asynchronously / best-effort
     await send_early_access_confirmation_email(clean_email)
 
+    # If submitted with demo source, or as early access notice, also notify admin
+    try:
+        from app.services.email_service import send_demo_request_notification_to_admin
+        await send_demo_request_notification_to_admin(
+            requester_email=clean_email,
+            requester_name=None,
+            requester_notes=f"Source: {payload.source}",
+            ip_address=get_real_ip(request),
+        )
+    except Exception:
+        pass
+
     return EarlyAccessResponse(
         success=True,
-        message="You're on the list! We'll let you know when there's something to try.",
+        message="Thank you! We'll be in touch shortly.",
         email=clean_email,
     )

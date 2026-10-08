@@ -124,3 +124,16 @@ class EarlyAccessSubscriber(Base):
     source: Mapped[str] = mapped_column(String, default="landing_page")
     ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class DemoRequestRecord(Base):
+    __tablename__ = "demo_requests"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    email: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String, default="landing_page")
+    ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+

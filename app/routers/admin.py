@@ -10,6 +10,7 @@ from app.db.models import (
     Artist,
     ConciergeMessage,
     ConciergeSession,
+    DemoRequestRecord,
     EarlyAccessSubscriber,
     TasteProfile,
     User,
@@ -24,6 +25,7 @@ from app.models.admin import (
     AdminVerificationItem,
 )
 from app.models.early_access import EarlyAccessListResponse, EarlyAccessSubscriberOut
+from app.models.demo import DemoListResponse, DemoRequestOut
 from app.models.concierge import SessionDetailResponse, SessionMessageOut
 from app.models.taste_profile import DescriptiveWord, TasteProfileRequest, TasteProfileResult
 from app.services.taste_profile_service import build_summary
@@ -493,3 +495,58 @@ async def delete_early_access_subscriber(
         raise HTTPException(status_code=404, detail="Subscriber not found")
     await db.delete(subscriber)
     await db.commit()
+
+
+# ==========================================
+# 7. Demo Requests Oversight
+# ==========================================
+@router.get("/demo-requests", response_model=DemoListResponse)
+async def list_demo_requests(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_session),
+) -> DemoListResponse:
+    """List all submitted demo requests."""
+    total_res = await db.execute(select(func.count(DemoRequestRecord.id)))
+    total = total_res.scalar_one()
+
+    query = (
+        select(DemoRequestRecord)
+        .order_by(DemoRequestRecord.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    records = (await db.execute(query)).scalars().all()
+
+    return DemoListResponse(
+        total=total,
+        requests=[
+            DemoRequestOut(
+                id=r.id,
+                email=r.email,
+                name=r.name,
+                notes=r.notes,
+                source=r.source,
+                ip_address=r.ip_address,
+                created_at=r.created_at,
+            )
+            for r in records
+        ],
+    )
+
+
+@router.delete("/demo-requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_demo_request(
+    request_id: str,
+    db: AsyncSession = Depends(get_session),
+) -> None:
+    """Remove a demo request record."""
+    result = await db.execute(
+        select(DemoRequestRecord).where(DemoRequestRecord.id == request_id)
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        raise HTTPException(status_code=404, detail="Demo request not found")
+    await db.delete(record)
+    await db.commit()
+

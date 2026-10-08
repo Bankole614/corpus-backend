@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     brevo_sender_email: str = ""
     emails_from_name: str = "Corpus"
     brevo_sender_name: str = ""
+    demo_recipient_email: str = "bankoleayobami01@gmail.com"
     frontend_url: str = "http://localhost:3000"
 
     # Rate Limiting
