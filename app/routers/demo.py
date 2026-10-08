@@ -37,6 +37,7 @@ async def request_demo(
     record = DemoRequestRecord(
         email=clean_email,
         name=payload.name.strip() if payload.name else None,
+        role=payload.role.strip() if payload.role else "Individual / Collector",
         notes=payload.notes.strip() if payload.notes else None,
         source=payload.source,
         ip_address=client_ip,
@@ -49,6 +50,7 @@ async def request_demo(
         await send_demo_request_notification_to_admin(
             requester_email=clean_email,
             requester_name=payload.name,
+            requester_role=payload.role,
             requester_notes=payload.notes,
             ip_address=client_ip,
         )

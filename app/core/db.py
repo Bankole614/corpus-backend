@@ -45,6 +45,11 @@ def _migrate_columns(connection) -> None:
         if "image_url" not in columns:
             connection.execute(text("ALTER TABLE concierge_messages ADD COLUMN image_url VARCHAR"))
 
+    if "demo_requests" in inspector.get_table_names():
+        columns = [col["name"] for col in inspector.get_columns("demo_requests")]
+        if "role" not in columns:
+            connection.execute(text("ALTER TABLE demo_requests ADD COLUMN role VARCHAR DEFAULT 'individual'"))
+
 
 async def init_db() -> None:
     """Create tables if they don't exist, and ensure updated columns exist."""

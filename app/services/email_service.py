@@ -167,6 +167,7 @@ async def send_early_access_confirmation_email(to_email: str) -> bool:
 async def send_demo_request_notification_to_admin(
     requester_email: str,
     requester_name: str | None = None,
+    requester_role: str | None = None,
     requester_notes: str | None = None,
     ip_address: str | None = None,
 ) -> bool:
@@ -176,6 +177,7 @@ async def send_demo_request_notification_to_admin(
     """
     admin_email = settings.demo_recipient_email or "bankoleayobami01@gmail.com"
     name_display = requester_name.strip() if requester_name else "Not provided"
+    role_display = requester_role.strip() if requester_role else "Individual / Collector"
     notes_display = requester_notes.strip() if requester_notes else "None"
     ip_display = ip_address or "Unknown"
 
@@ -203,17 +205,22 @@ async def send_demo_request_notification_to_admin(
         <p style="color: #a1a1aa; font-size: 15px;">Someone just submitted a demo request from the Corpus landing page.</p>
         
         <div class="item">
-          <div class="label">Requester Email</div>
-          <div class="value"><a href="mailto:{requester_email}" style="color: #d4af37; text-decoration: none;">{requester_email}</a></div>
-        </div>
-
-        <div class="item">
           <div class="label">Requester Name</div>
           <div class="value">{name_display}</div>
         </div>
 
         <div class="item">
-          <div class="label">Notes / Message</div>
+          <div class="label">Requester Email</div>
+          <div class="value"><a href="mailto:{requester_email}" style="color: #d4af37; text-decoration: none;">{requester_email}</a></div>
+        </div>
+
+        <div class="item">
+          <div class="label">Role / Segment</div>
+          <div class="value" style="color: #d4af37; font-weight: 500;">{role_display}</div>
+        </div>
+
+        <div class="item">
+          <div class="label">What They Want to See / Notes</div>
           <div class="value">{notes_display}</div>
         </div>
 

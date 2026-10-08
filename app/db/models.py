@@ -132,8 +132,10 @@ class DemoRequestRecord(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
     email: Mapped[str] = mapped_column(String, index=True, nullable=False)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
+    role: Mapped[str | None] = mapped_column(String, nullable=True, default="individual")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(String, default="landing_page")
     ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
 

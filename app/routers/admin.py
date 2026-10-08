@@ -525,6 +525,7 @@ async def list_demo_requests(
                 id=r.id,
                 email=r.email,
                 name=r.name,
+                role=r.role,
                 notes=r.notes,
                 source=r.source,
                 ip_address=r.ip_address,
