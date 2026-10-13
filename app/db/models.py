@@ -38,6 +38,9 @@ class User(Base):
     verification_records: Mapped[list["VerificationRecord"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    revoked_tokens: Mapped[list["RevokedToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class ConciergeSession(Base):
@@ -139,3 +142,14 @@ class DemoRequestRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
+    jti: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    user: Mapped["User | None"] = relationship(back_populates="revoked_tokens")

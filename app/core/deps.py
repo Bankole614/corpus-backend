@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.security import decode_access_token
 from app.db.models import User
+from app.services.token_service import is_token_revoked
 
 # HTTPBearer scheme for JWT extraction
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -25,6 +26,10 @@ async def get_optional_current_user(
 
     payload = decode_access_token(auth.credentials)
     if payload is None:
+        return None
+
+    # Verify that the token has not been revoked (blacklisted via logout)
+    if await is_token_revoked(db, auth.credentials, jti=payload.get("jti")):
         return None
 
     user_id = payload.get("sub")

@@ -1,16 +1,19 @@
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import get_session
-from app.core.deps import get_current_user
+from app.core.deps import bearer_scheme, get_current_user
 from app.core.limiter import get_real_ip, limiter
 from app.core.security import (
     create_access_token,
     create_password_reset_token,
+    decode_access_token,
     decode_password_reset_token,
     get_password_fingerprint,
     hash_password,
@@ -30,6 +33,7 @@ from app.models.auth import (
     UserRegisterRequest,
 )
 from app.services.email_service import send_password_reset_email
+from app.services.token_service import revoke_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -120,6 +124,48 @@ async def login(
 
     token = create_access_token({"sub": user.id})
     return TokenResponse(access_token=token, token_type="bearer", user=_user_to_out(user))
+
+
+@router.post("/logout", response_model=MessageResponse)
+@limiter.limit(settings.rate_limit_auth, key_func=get_real_ip)
+async def logout(
+    request: Request,
+    auth: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session),
+) -> MessageResponse:
+    """
+    Log out the current user and invalidate their active JWT access token.
+    Subsequent requests with this token will be rejected with 401 Unauthorized.
+    """
+    if not auth or not auth.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = auth.credentials
+    payload = decode_access_token(token)
+    if not payload:
+        return MessageResponse(message="Successfully logged out")
+
+    jti = payload.get("jti")
+    exp_ts = payload.get("exp")
+    if exp_ts:
+        expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc)
+    else:
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+
+    await revoke_token(
+        db=db,
+        token=token,
+        user_id=current_user.id,
+        expires_at=expires_at,
+        jti=jti,
+    )
+
+    return MessageResponse(message="Successfully logged out")
 
 
 @router.post("/google", response_model=TokenResponse)

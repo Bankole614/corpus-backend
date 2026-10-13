@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 import bcrypt
@@ -24,8 +25,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(pw_bytes, hashed_password.encode("utf-8"))
 
 
+def hash_token(token: str) -> str:
+    """Generate SHA-256 hash of a JWT token string for database indexing."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
-    """Create a signed JWT access token."""
+    """Create a signed JWT access token with unique jti claim."""
     to_encode = data.copy()
     now = datetime.now(timezone.utc)
     if expires_delta:
@@ -33,7 +39,11 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     else:
         expire = now + timedelta(minutes=settings.access_token_expire_minutes)
 
-    to_encode.update({"iat": int(now.timestamp()), "exp": int(expire.timestamp())})
+    payload_updates: dict[str, Any] = {"iat": int(now.timestamp()), "exp": int(expire.timestamp())}
+    if "jti" not in to_encode:
+        payload_updates["jti"] = str(uuid.uuid4())
+    to_encode.update(payload_updates)
+
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 

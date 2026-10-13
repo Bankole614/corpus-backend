@@ -100,6 +100,7 @@ sudo certbot --nginx -d corpus-api.bankole.xyz
 ### Authentication (`/auth`)
 - `POST /auth/register` — create account with `email`, `password`, and optional `full_name` (returns JWT + profile)
 - `POST /auth/login` — authenticate with `email` and `password` (returns JWT + profile)
+- `POST /auth/logout` — invalidate active access token and blacklist session (`Authorization: Bearer <token>`)
 - `POST /auth/google` — authenticate or auto-register using a Google ID token (`credential`)
 - `POST /auth/forgot-password` — request a password reset email via Brevo
 - `POST /auth/reset-password` — reset password using a single-use reset token
@@ -155,7 +156,7 @@ All `/admin/*` endpoints require `is_admin=True` or `X-Admin-Key: <ADMIN_API_KEY
 Configured via environment variables (defaults shown below) with real IP proxy resolution (`X-Forwarded-For`) and user-aware keying:
 | Endpoint Group | Default Limit | Purpose |
 | :--- | :--- | :--- |
-| `POST /auth/login`, `POST /auth/register`, `POST /auth/google`, `POST /auth/reset-password` | `10/minute` | Brute force / credential stuffing protection |
+| `POST /auth/login`, `POST /auth/register`, `POST /auth/logout`, `POST /auth/google`, `POST /auth/reset-password` | `10/minute` | Brute force / credential stuffing protection |
 | `POST /auth/forgot-password` | `3/minute` | Transactional email & quota exhaustion protection |
 | `POST /verify` | `15/minute` | Gemini LLM quota & cost protection |
 | `POST /concierge/sessions/{id}/messages` | `20/minute` | Multi-turn chat abuse protection |
