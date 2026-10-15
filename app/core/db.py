@@ -53,6 +53,7 @@ def _migrate_columns(connection) -> None:
 
 async def init_db() -> None:
     """Create tables if they don't exist, and ensure updated columns exist."""
+    import app.db.models  # noqa: F401 - ensure models are registered
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_migrate_columns)

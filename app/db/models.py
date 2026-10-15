@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -39,6 +39,9 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan"
     )
     revoked_tokens: Mapped[list["RevokedToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    saved_vault_items: Mapped[list["UserSavedVault"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -153,3 +156,19 @@ class RevokedToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped["User | None"] = relationship(back_populates="revoked_tokens")
+
+
+class UserSavedVault(Base):
+    __tablename__ = "user_saved_vault"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    item_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    item_type: Mapped[str] = mapped_column(String(20), nullable=False)  # "movement" | "motif"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "item_id", name="uq_user_vault_item"),
+    )
+
+    user: Mapped["User"] = relationship(back_populates="saved_vault_items")
