@@ -69,47 +69,32 @@ def get_r2_client():
     )
     return s3_client, bucket_name
 
-def get_existing_r2_objects(s3, bucket_name):
-    """Retrieve a dictionary of {key: size} for all objects currently in the bucket under vault/."""
-    existing = {}
-    paginator = s3.get_paginator("list_objects_v2")
-    try:
-        for page in paginator.paginate(Bucket=bucket_name, Prefix="vault/"):
-            for obj in page.get("Contents", []):
-                existing[obj["Key"]] = obj.get("Size", 0)
-    except Exception as e:
-        print(f"[*] Note: Could not pre-fetch bucket list ({e}). Will perform standard upload.")
-    return existing
-
-def upload_images(force=False):
-    if not VAULT_DIR.exists():
-        print(f"[!] Directory not found: {VAULT_DIR}")
+def upload_folder(folder_path: Path, prefix: str, s3, bucket_name: str, public_base_url: str, force: bool = False):
+    if not folder_path.exists():
+        print(f"[*] Skipping {folder_path} (not found).")
         return
 
     # Check for known filename typos before upload
-    typo_file = VAULT_DIR / "dagger_hear_2.jpg"
+    typo_file = folder_path / "dagger_hear_2.jpg"
     if typo_file.exists():
-        fixed_file = VAULT_DIR / "dagger_heart_2.jpg"
+        fixed_file = folder_path / "dagger_heart_2.jpg"
         print(f"[*] Fixing filename typo: {typo_file.name} -> {fixed_file.name}")
         typo_file.rename(fixed_file)
 
-    images = sorted(VAULT_DIR.glob("*.jpg"))
+    images = sorted(folder_path.glob("*.jpg"))
     if not images:
-        print(f"[!] No .jpg files found in {VAULT_DIR}")
+        print(f"[*] No .jpg files found in {folder_path}")
         return
 
-    s3, bucket_name = get_r2_client()
-    public_base_url = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
-
     # Fetch existing objects to enable Smart-Skip
-    existing_objects = {} if force else get_existing_r2_objects(s3, bucket_name)
+    existing_objects = {} if force else get_existing_r2_objects(s3, bucket_name, prefix=f"{prefix}/")
     if existing_objects and not force:
-        print(f"[*] Found {len(existing_objects)} existing files already on R2. Smart-Skip enabled.")
+        print(f"[*] Found {len(existing_objects)} existing files under '{prefix}/' on R2. Smart-Skip enabled.")
 
     print(f"\n========================================================")
-    print(f"  Uploading images to Cloudflare R2 bucket: '{bucket_name}'")
+    print(f"  Uploading {len(images)} images from '{folder_path}' to '{prefix}/' in '{bucket_name}'")
     if force:
-        print(f"  Mode: FORCE OVERWRITE (all {len(images)} images)")
+        print(f"  Mode: FORCE OVERWRITE")
     print(f"========================================================\n")
 
     uploaded_count = 0
@@ -117,7 +102,7 @@ def upload_images(force=False):
     fail_count = 0
 
     for idx, img_path in enumerate(images, 1):
-        object_key = f"vault/{img_path.name}"
+        object_key = f"{prefix}/{img_path.name}"
         local_size = img_path.stat().st_size
 
         # Smart-Skip check: If already on R2 and identical size, skip upload!
@@ -146,20 +131,50 @@ def upload_images(force=False):
             print(f"[{idx}/{len(images)}] [FAILED] {img_path.name}: {e}")
 
     print("\n--------------------------------------------------------")
-    print(f"Upload Complete!")
+    print(f"Upload Complete for {prefix}/:")
     print(f"  Uploaded : {uploaded_count}")
     print(f"  Skipped  : {skipped_count} (already on R2)")
     print(f"  Failed   : {fail_count}")
     if public_base_url:
-        print(f"\nYour vault images CDN base URL is:")
-        print(f"  {public_base_url}/vault/\n")
+        print(f"  CDN URL  : {public_base_url}/{prefix}/\n")
     print("--------------------------------------------------------")
 
-if __name__ == "__main__":
+
+def get_existing_r2_objects(s3, bucket_name, prefix="vault/"):
+    """Retrieve a dictionary of {key: size} for all objects currently in the bucket under a prefix."""
+    existing = {}
+    paginator = s3.get_paginator("list_objects_v2")
+    try:
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                existing[obj["Key"]] = obj.get("Size", 0)
+    except Exception as e:
+        print(f"[*] Note: Could not pre-fetch bucket list for {prefix} ({e}). Will perform standard upload.")
+    return existing
+
+
+def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Upload vault images to Cloudflare R2 with Smart-Skip.")
+    parser = argparse.ArgumentParser(description="Upload vault and deck images to Cloudflare R2 with Smart-Skip.")
+    parser.add_argument("--dir", type=str, help="Specific local directory to upload (e.g. app/static/deck)")
+    parser.add_argument("--prefix", type=str, help="Custom R2 folder prefix (default: folder name)")
     parser.add_argument("--force", action="store_true", help="Re-upload all images even if already present on R2.")
     args = parser.parse_args()
 
-    upload_images(force=args.force)
+    s3, bucket_name = get_r2_client()
+    public_base_url = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
+
+    if args.dir:
+        folder = Path(args.dir)
+        prefix = args.prefix or folder.name
+        upload_folder(folder, prefix, s3, bucket_name, public_base_url, force=args.force)
+    else:
+        # Default: upload both vault and deck folders
+        upload_folder(Path("app/static/vault"), "vault", s3, bucket_name, public_base_url, force=args.force)
+        upload_folder(Path("app/static/deck"), "deck", s3, bucket_name, public_base_url, force=args.force)
+
+
+if __name__ == "__main__":
+    main()
+
 
