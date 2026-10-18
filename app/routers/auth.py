@@ -1,8 +1,11 @@
+import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials
+import requests
+from google.auth import exceptions as google_auth_exceptions
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +37,8 @@ from app.models.auth import (
 )
 from app.services.email_service import send_password_reset_email
 from app.services.token_service import revoke_token
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -181,11 +186,46 @@ async def google_auth(
     """
     try:
         id_info = verify_google_token(payload.credential)
+    except (
+        google_auth_exceptions.TransportError,
+        requests.RequestException,
+        ConnectionError,
+        TimeoutError,
+        OSError,
+    ) as e:
+        logger.error("Network error during Google OAuth token verification: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google authentication service is currently unavailable. Please try again later.",
+        )
     except ValueError as e:
+        err_msg = str(e)
+        if any(
+            net_keyword in err_msg
+            for net_keyword in (
+                "ConnectionResetError",
+                "Connection refused",
+                "Failed to establish a new connection",
+                "Connection broken",
+                "RemoteDisconnected",
+                "timed out",
+            )
+        ):
+            logger.error("Connection drop detected during Google OAuth token verification: %s", e, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Google authentication service is currently unavailable. Please try again later.",
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+    except Exception as e:
+        logger.error("Unexpected error during Google OAuth token verification: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while verifying your Google account. Please try again later.",
+        )
 
     google_id = id_info.get("sub")
     email = id_info.get("email")

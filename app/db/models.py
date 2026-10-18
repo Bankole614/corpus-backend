@@ -44,6 +44,9 @@ class User(Base):
     saved_vault_items: Mapped[list["UserSavedVault"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    saved_taste_styles: Mapped[list["UserSavedTasteStyle"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class ConciergeSession(Base):
@@ -172,3 +175,18 @@ class UserSavedVault(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="saved_vault_items")
+
+
+class UserSavedTasteStyle(Base):
+    __tablename__ = "user_saved_taste_styles"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid_str)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    style_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "style_id", name="uq_user_saved_taste_style"),
+    )
+
+    user: Mapped["User"] = relationship(back_populates="saved_taste_styles")

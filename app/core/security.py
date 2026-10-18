@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 import bcrypt
 import jwt
+import requests
+from google.auth import exceptions as google_auth_exceptions
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 
@@ -101,12 +103,34 @@ def decode_password_reset_token(token: str) -> dict[str, Any] | None:
 def verify_google_token(credential: str) -> dict[str, Any]:
     """
     Verify a Google ID token (credential) from Google Sign-In.
-    Returns the token's payload dictionary if valid, or raises ValueError.
+    Returns the token's payload dictionary if valid.
+    Raises network/connection exceptions on connection drops or ValueError on invalid tokens.
     """
     audience = settings.google_client_id if settings.google_client_id else None
     request = google_requests.Request()
     try:
         id_info = google_id_token.verify_oauth2_token(credential, request, audience=audience)
         return id_info
+    except (
+        google_auth_exceptions.TransportError,
+        requests.RequestException,
+        ConnectionError,
+        TimeoutError,
+        OSError,
+    ):
+        raise
     except Exception as e:
+        causes = [e, getattr(e, "__cause__", None), getattr(e, "__context__", None)]
+        for err in causes:
+            if err and isinstance(
+                err,
+                (
+                    google_auth_exceptions.TransportError,
+                    requests.RequestException,
+                    ConnectionError,
+                    TimeoutError,
+                    OSError,
+                ),
+            ):
+                raise
         raise ValueError(f"Invalid Google ID token: {e}") from e

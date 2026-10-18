@@ -49,3 +49,19 @@ class TasteProfileResult(BaseModel):
         ..., description="Plain-language recap of the style profile, for display and later matching."
     )
 
+
+class SaveStyleRequest(BaseModel):
+    style_id: str = Field(..., min_length=1, max_length=100, description="Style card ID (e.g., 'deck_01')")
+
+
+class SyncStyleRequest(BaseModel):
+    saved_style_ids: list[str] = Field(default_factory=list, description="List of style card IDs to merge with cloud database")
+
+
+class SavedStylesResponse(BaseModel):
+    saved_style_ids: list[str]
+
+
+class SavedStyleActionResponse(BaseModel):
+    status: str = "success"
+
