@@ -914,24 +914,6 @@ _DEFAULT_STYLE_DECK: list[StyleCardItem] = [
         color_approach="color",
         composition="symmetrical",
     ),
-    StyleCardItem(
-        id="leg-calf-japanese-irezumi-koi",
-        title="Japanese Irezumi Koi & Waves Calf Piece",
-        image_url=_card_img("leg_calf_japanese_irezumi_koi.jpg"),
-        word=DescriptiveWord.japanese,
-        line_weight="bold",
-        color_approach="color",
-        composition="organic",
-    ),
-    StyleCardItem(
-        id="leg-ankle-botanical-vine-wrap",
-        title="Botanical Olive & Wildflower Ankle Wrap",
-        image_url=_card_img("leg_ankle_botanical_vine_wrap.jpg"),
-        word=DescriptiveWord.minimal,
-        line_weight="fine",
-        color_approach="black_grey",
-        composition="organic",
-    ),
 ]
 
 
