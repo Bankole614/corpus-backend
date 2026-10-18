@@ -829,15 +829,6 @@ _DEFAULT_STYLE_DECK: list[StyleCardItem] = [
         color_approach="black_grey",
         composition="organic",
     ),
-    StyleCardItem(
-        id="full-sleeve-dark-surrealism",
-        title="Dark Surrealism & Metamorphosis Full Sleeve",
-        image_url=_card_img("full_sleeve_dark_surrealism.jpg"),
-        word=DescriptiveWord.surrealist,
-        line_weight="medium",
-        color_approach="black_grey",
-        composition="asymmetrical",
-    ),
 
     # ---------------------------------------------------------
     # 5. DEDICATED HAND & LEG TATTOOS (10 Cards)
@@ -858,15 +849,6 @@ _DEFAULT_STYLE_DECK: list[StyleCardItem] = [
         word=DescriptiveWord.neo_traditional,
         line_weight="bold",
         color_approach="color",
-        composition="symmetrical",
-    ),
-    StyleCardItem(
-        id="hand-micro-minimalist-symbols",
-        title="Fine-Line Micro-Runes & Finger Glyphs",
-        image_url=_card_img("hand_micro_minimalist_symbols.jpg"),
-        word=DescriptiveWord.minimal,
-        line_weight="fine",
-        color_approach="black_grey",
         composition="symmetrical",
     ),
     StyleCardItem(
