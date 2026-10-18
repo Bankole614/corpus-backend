@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     verification_model: str = "gemini-3.6-flash"
     concierge_model: str = "gemini-3.6-flash"
 
+    # Image CDN / Cloudflare R2
+    r2_public_url: str = ""
+
     # CORS configuration (comma-separated or list)
     cors_origins: list[str] = ["*"]
 

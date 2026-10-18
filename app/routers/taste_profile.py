@@ -32,7 +32,7 @@ def _to_result(profile: TasteProfile) -> TasteProfileResult:
 
 @router.get("/deck", response_model=list[StyleCardItem])
 async def get_taste_deck(
-    limit: int = Query(50, ge=1, le=100, description="Number of style cards to return"),
+    limit: int = Query(100, ge=1, le=150, description="Number of style cards to return"),
 ) -> list[StyleCardItem]:
     """
     Fetch the curated swipe deck of real tattoo photos with style tags
