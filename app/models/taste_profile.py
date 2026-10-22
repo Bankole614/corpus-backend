@@ -27,6 +27,7 @@ class TasteProfileRequest(BaseModel):
     line_weight: str = Field(default="fine", description="Line weight preference (fine, bold, medium)")
     color_approach: str = Field(default="black_grey", description="Color preference (color, black_grey)")
     composition: str = Field(default="organic", description="Composition flow (symmetrical, organic, flowing, radial, etc.)")
+    liked_card_ids: list[str] = Field(default_factory=list, description="IDs of cards swiped right or saved in the deck")
 
 
 class StyleCardItem(BaseModel):
@@ -39,14 +40,54 @@ class StyleCardItem(BaseModel):
     composition: str = "organic"
 
 
+class TasteAestheticTraits(BaseModel):
+    primary_style: str
+    secondary_styles: list[str] = Field(default_factory=list)
+    density: str
+    contrast: str
+    mood_keywords: list[str] = Field(default_factory=list)
+
+
+class TasteConsultationAdvice(BaseModel):
+    what_to_ask_for: list[str] = Field(default_factory=list)
+    what_to_avoid: list[str] = Field(default_factory=list)
+    key_terms: list[str] = Field(default_factory=list)
+
+
+class TastePlacementInsights(BaseModel):
+    recommended_placements: list[str] = Field(default_factory=list)
+    aging_considerations: str
+
+
 class TasteProfileResult(BaseModel):
     profile_id: str
     descriptive_words: list[DescriptiveWord]
     line_weight: str = "fine"
     color_approach: str = "black_grey"
     composition: str = "organic"
+    archetype: str = "The Eclectic Collector"
+    archetype_subtitle: str = "A bespoke visual dialogue balancing distinct tattoo traditions."
     summary: str = Field(
         ..., description="Plain-language recap of the style profile, for display and later matching."
+    )
+    narrative: str = Field(
+        default="", description="Deep multi-paragraph editorial critique exploring the user's aesthetic synthesis."
+    )
+    aesthetic_traits: TasteAestheticTraits = Field(
+        default_factory=lambda: TasteAestheticTraits(
+            primary_style="Versatile",
+            secondary_styles=[],
+            density="Balanced",
+            contrast="Medium",
+            mood_keywords=[],
+        )
+    )
+    consultation_advice: TasteConsultationAdvice = Field(default_factory=TasteConsultationAdvice)
+    placement_insights: TastePlacementInsights = Field(
+        default_factory=lambda: TastePlacementInsights(
+            recommended_placements=[],
+            aging_considerations="Protect healed tattoos with sunscreen to prevent fine linework degradation.",
+        )
     )
 
 

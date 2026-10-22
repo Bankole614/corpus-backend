@@ -15,28 +15,26 @@ from app.models.taste_profile import (
     TasteProfileRequest,
     TasteProfileResult,
 )
-from app.services.taste_profile_service import build_summary, get_default_style_deck
+from app.services.taste_profile_service import (
+    build_summary,
+    build_taste_profile_result,
+    build_taste_profile_result_async,
+    get_default_style_deck,
+)
 
 router = APIRouter(prefix="/taste-profile", tags=["taste-profile"])
 
 
-def _to_result(profile: TasteProfile) -> TasteProfileResult:
+async def _to_result(profile: TasteProfile, liked_card_ids: list[str] | None = None) -> TasteProfileResult:
     words = [DescriptiveWord(w) for w in profile.descriptive_words.split(",") if w]
-    return TasteProfileResult(
-        profile_id=profile.id,
+    req = TasteProfileRequest(
         descriptive_words=words,
         line_weight=profile.line_weight,  # type: ignore[arg-type]
         color_approach=profile.color_approach,  # type: ignore[arg-type]
         composition=profile.composition,  # type: ignore[arg-type]
-        summary=build_summary(
-            TasteProfileRequest(
-                descriptive_words=words,
-                line_weight=profile.line_weight,  # type: ignore[arg-type]
-                color_approach=profile.color_approach,  # type: ignore[arg-type]
-                composition=profile.composition,  # type: ignore[arg-type]
-            )
-        ),
+        liked_card_ids=liked_card_ids or [],
     )
+    return await build_taste_profile_result_async(profile.id, req)
 
 
 @router.get("/deck", response_model=list[StyleCardItem])
@@ -66,7 +64,7 @@ async def submit_taste_profile(
     db.add(profile)
     await db.commit()
     await db.refresh(profile)
-    return _to_result(profile)
+    return await _to_result(profile, liked_card_ids=request.liked_card_ids)
 
 
 @router.get("/me", response_model=TasteProfileResult)
@@ -83,7 +81,8 @@ async def get_my_taste_profile(
     profile = result.scalars().first()
     if profile is None:
         raise HTTPException(status_code=404, detail="No taste profile found for this user")
-    return _to_result(profile)
+    saved_ids = await _get_user_saved_style_ids(current_user.id, db)
+    return await _to_result(profile, liked_card_ids=saved_ids)
 
 
 async def _get_user_saved_style_ids(user_id: str, db: AsyncSession) -> list[str]:
@@ -174,5 +173,5 @@ async def get_taste_profile(profile_id: str, db: AsyncSession = Depends(get_sess
     profile = result.scalar_one_or_none()
     if profile is None:
         raise HTTPException(status_code=404, detail="Taste profile not found")
-    return _to_result(profile)
+    return await _to_result(profile)
 

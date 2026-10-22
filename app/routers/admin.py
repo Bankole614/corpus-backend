@@ -28,7 +28,7 @@ from app.models.early_access import EarlyAccessListResponse, EarlyAccessSubscrib
 from app.models.demo import DemoListResponse, DemoRequestOut
 from app.models.concierge import SessionDetailResponse, SessionMessageOut
 from app.models.taste_profile import DescriptiveWord, TasteProfileRequest, TasteProfileResult
-from app.services.taste_profile_service import build_summary
+from app.services.taste_profile_service import build_summary, build_taste_profile_result
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(get_admin_user)])
 
@@ -425,23 +425,13 @@ async def list_all_taste_profiles(
     out = []
     for profile in profiles:
         words = [DescriptiveWord(w) for w in profile.descriptive_words.split(",") if w]
-        out.append(
-            TasteProfileResult(
-                profile_id=profile.id,
-                descriptive_words=words,
-                line_weight=profile.line_weight,  # type: ignore[arg-type]
-                color_approach=profile.color_approach,  # type: ignore[arg-type]
-                composition=profile.composition,  # type: ignore[arg-type]
-                summary=build_summary(
-                    TasteProfileRequest(
-                        descriptive_words=words,
-                        line_weight=profile.line_weight,  # type: ignore[arg-type]
-                        color_approach=profile.color_approach,  # type: ignore[arg-type]
-                        composition=profile.composition,  # type: ignore[arg-type]
-                    )
-                ),
-            )
+        req = TasteProfileRequest(
+            descriptive_words=words,
+            line_weight=profile.line_weight,  # type: ignore[arg-type]
+            color_approach=profile.color_approach,  # type: ignore[arg-type]
+            composition=profile.composition,  # type: ignore[arg-type]
         )
+        out.append(build_taste_profile_result(profile.id, req))
     return out
 
 
